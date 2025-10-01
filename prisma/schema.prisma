@@ -57,8 +57,9 @@ model CartItem {
   quantity  Int @default(1)
 
   cart    Cart    @relation(fields: [cartId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
+
 
 model Order {
   id        Int         @id @default(autoincrement())
@@ -72,9 +73,12 @@ model OrderItem {
   id        Int      @id @default(autoincrement())
   order     Order    @relation(fields: [orderId], references: [id])
   orderId   Int
-  product   Product  @relation(fields: [productId], references: [id])
-  productId Int
+
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId Int?
+
   quantity  Int
   price     Float
 }
+
 

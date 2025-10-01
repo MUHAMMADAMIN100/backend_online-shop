@@ -1,21 +1,27 @@
+import { join } from "path"
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { RolesGuard } from './auth/roles.guard';
 import { Reflector } from '@nestjs/core';
+import * as express from "express"
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.useGlobalPipes(new ValidationPipe());
-  app.useGlobalGuards(new RolesGuard(new Reflector()));
+  // app.useGlobalGuards(new RolesGuard(new Reflector()));
 
-   // Разрешаем все CORS-запросы (для разработки)
+   
   app.enableCors({
-    origin: '*', // разрешить все источники
+    origin: '*', 
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true, // если нужно использовать куки
+    credentials: true, 
   });
+
+  
+  
+
 
   await app.listen(3001);
   console.log('Server running on http://localhost:3001');

@@ -5,7 +5,6 @@ import { ProductService } from './product.service';
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
-  // Получение всех продуктов с фильтрацией и поиском
   @Get()
   async findAll(
     @Query('category') category?: string,

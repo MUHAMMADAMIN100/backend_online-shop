@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtStrategy } from './jwt.strategy';
+import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { JwtStrategy } from './jwt.strategy';
       secret: 'jwt_secret_key', // позже вынесем в .env
       signOptions: { expiresIn: '1d' },
     }),
+    PrismaModule,
   ],
   providers: [AuthService, PrismaService, JwtStrategy],
   controllers: [AuthController],

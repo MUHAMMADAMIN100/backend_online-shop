@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('cart')
 export class CartController {
-  constructor(private readonly cartService: CartService) {}
+  constructor(private readonly cartService: CartService) { }
 
   @UseGuards(JwtAuthGuard)
   @Get(':userId')
@@ -15,6 +15,9 @@ export class CartController {
   @UseGuards(JwtAuthGuard)
   @Post('add')
   addToCart(@Req() req, @Body() body: { productId: number; quantity: number }) {
+    console.log('=== addToCart called ===');
+    console.log('userId:', req.user.userId);
+    console.log('body:', body);
     return this.cartService.addToCart(req.user.userId, body.productId, body.quantity);
   }
 
