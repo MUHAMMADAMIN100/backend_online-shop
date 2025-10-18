@@ -56,7 +56,7 @@ export class AuthService {
 
     return { message: "Администратор успешно изменен", newAdmin: { id: result.id, email: result.email, role: result.role } };
   }
-
+  
   async getCurrentAdmin() {
     const admin = await this.prisma.user.findFirst({
       where: { role: "ADMIN" },

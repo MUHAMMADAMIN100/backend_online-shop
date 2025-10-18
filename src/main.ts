@@ -1,29 +1,27 @@
-import { join } from "path"
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { RolesGuard } from './auth/roles.guard';
 import { Reflector } from '@nestjs/core';
-import * as express from "express"
+import * as express from 'express';
 
-async function bootstrap() {
+// Функция для создания NestJS-приложения
+export async function createApp() {
   const app = await NestFactory.create(AppModule);
 
   app.useGlobalPipes(new ValidationPipe());
-  // app.useGlobalGuards(new RolesGuard(new Reflector()));
-
-   
   app.enableCors({
-    origin: '*', 
+    origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true, 
+    credentials: true,
   });
 
-  
-  
-
-
-  await app.listen(3001,'0.0.0.0');
-  console.log('Server running on http://localhost:3001');
+  return app;
 }
-bootstrap();
+
+// Если запускаем локально (не Vercel) — поднимаем сервер
+if (process.env.NODE_ENV !== 'production') {
+  createApp().then(async (app) => {
+    await app.listen(3001, '0.0.0.0');
+    console.log('✅ Server running on http://localhost:3001');
+  });
+}
