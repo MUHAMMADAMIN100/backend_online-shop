@@ -26,6 +26,9 @@ model Product {
   price       Float       @map("price")
   image       String?     @map("image")
   category    String?     @map("category")
+  colors      Json?       @map("colors")
+  sizes       Json?       @map("sizes")
+  stock       Int         @default(0) @map("stock")
   createdAt   DateTime    @default(now()) @map("createdAt")
   cartItems   CartItem[]
   orderItems  OrderItem[]
