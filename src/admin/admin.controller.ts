@@ -79,4 +79,9 @@ export class AdminController {
   async updateOrderStatus(@Param("id") id: string, @Body() { status }: { status: string }) {
     return this.adminService.updateOrderStatus(Number(id), status);
   }
+
+  @Get("analytics")
+  async getAnalytics() {
+    return this.adminService.getAnalytics();
+  }
 }

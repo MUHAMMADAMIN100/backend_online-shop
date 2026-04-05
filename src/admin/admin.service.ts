@@ -87,4 +87,80 @@ export class AdminService {
   async updateOrderStatus(id: number, status: string) {
     return { message: `Статус заказа ${id} обновлен на ${status}` };
   }
+
+  async getAnalytics() {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+    const [
+      thisMonthOrders,
+      lastMonthOrders,
+      allOrderItems,
+      allProducts,
+      totalStats,
+    ] = await Promise.all([
+      this.prisma.order.findMany({
+        where: { createdAt: { gte: startOfMonth } },
+        include: { items: true },
+      }),
+      this.prisma.order.findMany({
+        where: { createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } },
+        include: { items: true },
+      }),
+      this.prisma.orderItem.findMany({ include: { product: true } }),
+      this.prisma.product.findMany({ select: { id: true, name: true, stock: true } }),
+      this.prisma.$transaction([
+        this.prisma.user.count(),
+        this.prisma.product.count(),
+        this.prisma.order.count(),
+        this.prisma.orderItem.aggregate({ _sum: { price: true } }),
+      ]),
+    ]);
+
+    // Доход текущего месяца
+    const thisMonthRevenue = thisMonthOrders.reduce(
+      (sum, o) => sum + o.items.reduce((s, i) => s + i.price * i.quantity, 0), 0
+    );
+    const lastMonthRevenue = lastMonthOrders.reduce(
+      (sum, o) => sum + o.items.reduce((s, i) => s + i.price * i.quantity, 0), 0
+    );
+
+    // Топ продаж
+    const productSales: Record<number, { name: string; sold: number; revenue: number; stock: number }> = {};
+    allOrderItems.forEach(item => {
+      if (!item.productId) return;
+      const product = allProducts.find(p => p.id === item.productId);
+      if (!product) return;
+      if (!productSales[item.productId]) {
+        productSales[item.productId] = { name: product.name, sold: 0, revenue: 0, stock: product.stock ?? 0 };
+      }
+      productSales[item.productId].sold += item.quantity;
+      productSales[item.productId].revenue += item.price * item.quantity;
+    });
+
+    const topProducts = Object.entries(productSales)
+      .map(([id, v]) => ({ id: Number(id), ...v }))
+      .sort((a, b) => b.sold - a.sold)
+      .slice(0, 7);
+
+    // Критические остатки (<=10 шт)
+    const stockAlerts = allProducts
+      .filter(p => (p.stock ?? 0) <= 10)
+      .sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0));
+
+    return {
+      thisMonth: { orders: thisMonthOrders.length, revenue: Math.round(thisMonthRevenue) },
+      lastMonth: { orders: lastMonthOrders.length, revenue: Math.round(lastMonthRevenue) },
+      topProducts,
+      stockAlerts,
+      totalStats: {
+        users: totalStats[0],
+        products: totalStats[1],
+        orders: totalStats[2],
+        revenue: Math.round(totalStats[3]._sum?.price ?? 0),
+      },
+    };
+  }
 }
