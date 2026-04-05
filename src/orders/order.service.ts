@@ -96,6 +96,16 @@ export class OrderService {
 
     await this.prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
 
+    // Уменьшаем остатки на складе
+    await Promise.all(
+      cart.items.map(item =>
+        this.prisma.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
+        })
+      )
+    );
+
     // Уведомление в Telegram
     const total     = order.items.reduce((s, i) => s + i.price * i.quantity, 0);
     const itemLines = order.items

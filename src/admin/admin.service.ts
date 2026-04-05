@@ -88,11 +88,32 @@ export class AdminService {
     return { message: `Статус заказа ${id} обновлен на ${status}` };
   }
 
-  async getAnalytics() {
+  async getAnalytics(period: string = 'allTime') {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+    // Диапазон дат для фильтра графиков
+    let periodStart: Date | undefined;
+    let periodEnd: Date | undefined;
+    if (period === 'thisMonth') {
+      periodStart = startOfMonth;
+    } else if (period === 'lastMonth') {
+      periodStart = startOfLastMonth;
+      periodEnd = endOfLastMonth;
+    } else if (period === 'lastYear') {
+      const y = now.getFullYear() - 1;
+      periodStart = new Date(y, 0, 1);
+      periodEnd = new Date(y, 11, 31, 23, 59, 59);
+    } else if (period === 'thisYear') {
+      periodStart = new Date(now.getFullYear(), 0, 1);
+    }
+    // allTime — без фильтра
+
+    const orderItemsWhere = periodStart
+      ? { order: { createdAt: { gte: periodStart, ...(periodEnd ? { lte: periodEnd } : {}) } } }
+      : {};
 
     const [
       thisMonthOrders,
@@ -109,7 +130,7 @@ export class AdminService {
         where: { createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } },
         include: { items: true },
       }),
-      this.prisma.orderItem.findMany({ include: { product: true } }),
+      this.prisma.orderItem.findMany({ where: orderItemsWhere, include: { product: true } }),
       this.prisma.product.findMany({ select: { id: true, name: true, stock: true } }),
       this.prisma.$transaction([
         this.prisma.user.count(),

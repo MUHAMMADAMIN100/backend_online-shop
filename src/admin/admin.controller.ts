@@ -7,6 +7,7 @@ import {
   UseGuards,
   Param,
   Body,
+  Query,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AdminGuard } from "./admin.guard";
@@ -85,8 +86,8 @@ export class AdminController {
   }
 
   @Get("analytics")
-  async getAnalytics() {
-    return this.adminService.getAnalytics();
+  async getAnalytics(@Query("period") period?: string) {
+    return this.adminService.getAnalytics(period);
   }
 
   @Get("test-telegram")
