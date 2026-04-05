@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import * as https from 'https';
 
 interface OrderItemInput {
   productId: number;
@@ -17,19 +18,28 @@ interface CreateOrderOptions {
 export class OrderService {
   constructor(private prisma: PrismaService) {}
 
-  private async sendTelegramNotification(text: string): Promise<void> {
+  private sendTelegramNotification(text: string): void {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
-    if (!botToken || !chatId) return;
-    try {
-      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
-      });
-    } catch (e) {
-      console.error('Telegram notification failed:', e);
+    if (!botToken || !chatId) {
+      console.log('Telegram env vars not set, skipping notification');
+      return;
     }
+    const body = JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' });
+    const options = {
+      hostname: 'api.telegram.org',
+      path: `/bot${botToken}/sendMessage`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+    };
+    const req = https.request(options, res => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => console.log('Telegram response:', data));
+    });
+    req.on('error', e => console.error('Telegram notification failed:', e));
+    req.write(body);
+    req.end();
   }
 
   async createOrder(userId: number, options: CreateOrderOptions = {}) {
@@ -79,7 +89,7 @@ export class OrderService {
       `💰 <b>Итого: ${total.toLocaleString('ru')} ₽</b>`,
     ].filter(l => l !== undefined).join('\n');
 
-    await this.sendTelegramNotification(message);
+    this.sendTelegramNotification(message);
 
     return order;
   }
