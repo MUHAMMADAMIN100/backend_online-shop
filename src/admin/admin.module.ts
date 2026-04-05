@@ -4,10 +4,11 @@ import { AdminService } from "./admin.service"
 import { AuthModule } from "../auth/auth.module"
 import { PrismaModule } from "../../prisma/prisma.module"
 import { AdminGuard } from "./admin.guard"
+import { OrderService } from "../orders/order.service"
 
 @Module({
   imports: [AuthModule, PrismaModule],
   controllers: [AdminController],
-  providers: [AdminService, AdminGuard],
+  providers: [AdminService, AdminGuard, OrderService],
 })
 export class AdminModule {}

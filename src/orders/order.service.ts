@@ -18,28 +18,54 @@ interface CreateOrderOptions {
 export class OrderService {
   constructor(private prisma: PrismaService) {}
 
-  private sendTelegramNotification(text: string): void {
+  /** Отправляет сообщение в Telegram и возвращает ответ API */
+  sendTelegramMessage(text: string): Promise<{ ok: boolean; result?: any; description?: string }> {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
+    const chatId   = process.env.TELEGRAM_CHAT_ID;
+
+    console.log('[Telegram] BOT_TOKEN set:', !!botToken, '| CHAT_ID set:', !!chatId);
+
     if (!botToken || !chatId) {
-      console.log('Telegram env vars not set, skipping notification');
-      return;
+      const msg = 'TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set in environment';
+      console.warn('[Telegram]', msg);
+      return Promise.resolve({ ok: false, description: msg });
     }
-    const body = JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' });
-    const options = {
-      hostname: 'api.telegram.org',
-      path: `/bot${botToken}/sendMessage`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-    };
-    const req = https.request(options, res => {
-      let data = '';
-      res.on('data', chunk => { data += chunk; });
-      res.on('end', () => console.log('Telegram response:', data));
+
+    return new Promise((resolve) => {
+      const body = JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' });
+      const options = {
+        hostname: 'api.telegram.org',
+        path: `/bot${botToken}/sendMessage`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+        },
+      };
+
+      const req = https.request(options, (res) => {
+        let raw = '';
+        res.on('data', (chunk) => { raw += chunk; });
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(raw);
+            console.log('[Telegram] response:', JSON.stringify(parsed));
+            resolve(parsed);
+          } catch {
+            console.error('[Telegram] invalid JSON:', raw);
+            resolve({ ok: false, description: raw });
+          }
+        });
+      });
+
+      req.on('error', (err) => {
+        console.error('[Telegram] request error:', err.message);
+        resolve({ ok: false, description: err.message });
+      });
+
+      req.write(body);
+      req.end();
     });
-    req.on('error', e => console.error('Telegram notification failed:', e));
-    req.write(body);
-    req.end();
   }
 
   async createOrder(userId: number, options: CreateOrderOptions = {}) {
@@ -58,10 +84,10 @@ export class OrderService {
       data: {
         userId,
         items: {
-          create: cart.items.map(item => ({
+          create: cart.items.map((item) => ({
             productId: item.productId,
-            quantity: item.quantity,
-            price: item.product?.price || 0,
+            quantity:  item.quantity,
+            price:     item.product?.price || 0,
           })),
         },
       },
@@ -70,33 +96,36 @@ export class OrderService {
 
     await this.prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
 
-    // Отправляем уведомление в Telegram
-    const total = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    // Уведомление в Telegram
+    const total     = order.items.reduce((s, i) => s + i.price * i.quantity, 0);
     const itemLines = order.items
-      .map(i => `• ${i.product?.name ?? 'Товар'} × ${i.quantity} — ${(i.price * i.quantity).toLocaleString('ru')} ₽`)
+      .map((i) => `• ${i.product?.name ?? 'Товар'} × ${i.quantity} — ${(i.price * i.quantity).toLocaleString('ru')} ₽`)
       .join('\n');
 
     const message = [
       `🛒 <b>Новый заказ #${order.id}</b>`,
-      ``,
-      customerName ? `👤 Клиент: ${customerName}` : '',
-      phone        ? `📱 Телефон: ${phone}` : '',
-      address      ? `📍 Адрес: ${address}` : '',
-      ``,
+      '',
+      customerName ? `👤 Клиент: ${customerName}` : null,
+      phone        ? `📱 Телефон: ${phone}`        : null,
+      address      ? `📍 Адрес: ${address}`        : null,
+      '',
       `📦 <b>Товары:</b>`,
       itemLines,
-      ``,
+      '',
       `💰 <b>Итого: ${total.toLocaleString('ru')} ₽</b>`,
-    ].filter(l => l !== undefined).join('\n');
+    ].filter((l) => l !== null).join('\n');
 
-    this.sendTelegramNotification(message);
+    // Ждём результата — ошибка не должна прерывать ответ
+    this.sendTelegramMessage(message).catch((e) =>
+      console.error('[Telegram] unexpected error:', e),
+    );
 
     return order;
   }
 
   async getOrders(userId: number) {
     return this.prisma.order.findMany({
-      where: { userId },
+      where:   { userId },
       include: { items: { include: { product: true } } },
       orderBy: { createdAt: 'desc' },
     });

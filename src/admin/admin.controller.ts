@@ -11,11 +11,15 @@ import {
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AdminGuard } from "./admin.guard";
 import { AdminService } from "./admin.service";
+import { OrderService } from "../orders/order.service";
 
 @Controller("admin")
 @UseGuards(JwtAuthGuard, AdminGuard)
 export class AdminController {
-  constructor(private adminService: AdminService) {}
+  constructor(
+    private adminService: AdminService,
+    private orderService: OrderService,
+  ) {}
 
   @Get("dashboard")
   async getDashboard() {
@@ -83,5 +87,13 @@ export class AdminController {
   @Get("analytics")
   async getAnalytics() {
     return this.adminService.getAnalytics();
+  }
+
+  @Get("test-telegram")
+  async testTelegram() {
+    const result = await this.orderService.sendTelegramMessage(
+      '✅ <b>Тест DORRO</b>\n\nTelegram-бот работает корректно!\nПеременные окружения настроены.',
+    );
+    return result;
   }
 }
