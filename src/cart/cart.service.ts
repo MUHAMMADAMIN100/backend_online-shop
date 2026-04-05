@@ -21,19 +21,23 @@ export class CartService {
     return cart
   }
 
-async addToCart(userId: number, productId: number, quantity: number) {
+async addToCart(userId: number, productId: number, quantity: number, size?: string, color?: string) {
     let cart = await this.prisma.cart.findUnique({ where: { userId } })
 
     if (!cart) {
       console.log("Cart not found for user", userId, "creating new cart...")
-      cart = await this.prisma.cart.create({
-        data: { userId },
-      })
+      cart = await this.prisma.cart.create({ data: { userId } })
       console.log("New cart created with id:", cart.id)
     }
 
+    // Ищем по productId + size + color — разные вариации = разные позиции
     const existing = await this.prisma.cartItem.findFirst({
-      where: { cartId: cart.id, productId },
+      where: {
+        cartId: cart.id,
+        productId,
+        size: size ?? null,
+        color: color ?? null,
+      },
     })
 
     if (existing) {
@@ -45,7 +49,7 @@ async addToCart(userId: number, productId: number, quantity: number) {
     }
 
     return this.prisma.cartItem.create({
-      data: { cartId: cart.id, productId, quantity },
+      data: { cartId: cart.id, productId, quantity, size, color },
       include: { product: true },
     })
   }

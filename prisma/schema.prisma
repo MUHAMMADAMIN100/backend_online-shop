@@ -50,6 +50,8 @@ model CartItem {
   cartId    Int     @map("cartId")
   productId Int     @map("productId")
   quantity  Int     @default(1) @map("quantity")
+  size      String? @map("size")
+  color     String? @map("color")
   cart      Cart    @relation(fields: [cartId], references: [id])
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 

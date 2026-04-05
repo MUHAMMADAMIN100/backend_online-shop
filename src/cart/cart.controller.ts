@@ -14,11 +14,11 @@ export class CartController {
 
   @UseGuards(JwtAuthGuard)
   @Post('add')
-  addToCart(@Req() req, @Body() body: { productId: number; quantity: number }) {
+  addToCart(@Req() req, @Body() body: { productId: number; quantity: number; size?: string; color?: string }) {
     console.log('=== addToCart called ===');
     console.log('userId:', req.user.userId);
     console.log('body:', body);
-    return this.cartService.addToCart(req.user.userId, body.productId, body.quantity);
+    return this.cartService.addToCart(req.user.userId, body.productId, body.quantity, body.size, body.color);
   }
 
   @UseGuards(JwtAuthGuard)
