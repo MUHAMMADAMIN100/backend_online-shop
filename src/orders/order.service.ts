@@ -32,7 +32,7 @@ export class OrderService {
     }
 
     return new Promise((resolve) => {
-      const body = JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' });
+      const body = JSON.stringify({ chat_id: Number(chatId), text, parse_mode: 'HTML' });
       const options = {
         hostname: 'api.telegram.org',
         path: `/bot${botToken}/sendMessage`,
