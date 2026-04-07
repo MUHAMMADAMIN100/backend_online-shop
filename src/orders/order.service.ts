@@ -18,19 +18,8 @@ interface CreateOrderOptions {
 export class OrderService {
   constructor(private prisma: PrismaService) {}
 
-  /** Отправляет сообщение в Telegram и возвращает ответ API */
-  sendTelegramMessage(text: string): Promise<{ ok: boolean; result?: any; description?: string }> {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId   = process.env.TELEGRAM_CHAT_ID;
-
-    console.log('[Telegram] BOT_TOKEN set:', !!botToken, '| CHAT_ID set:', !!chatId);
-
-    if (!botToken || !chatId) {
-      const msg = 'TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set in environment';
-      console.warn('[Telegram]', msg);
-      return Promise.resolve({ ok: false, description: msg });
-    }
-
+  /** Отправляет сообщение одному получателю в Telegram */
+  private sendToChat(botToken: string, chatId: string, text: string): Promise<{ ok: boolean; result?: any; description?: string }> {
     return new Promise((resolve) => {
       const body = JSON.stringify({ chat_id: Number(chatId), text, parse_mode: 'HTML' });
       const options = {
@@ -49,7 +38,7 @@ export class OrderService {
         res.on('end', () => {
           try {
             const parsed = JSON.parse(raw);
-            console.log('[Telegram] response:', JSON.stringify(parsed));
+            console.log(`[Telegram] chat_id=${chatId} response:`, JSON.stringify(parsed));
             resolve(parsed);
           } catch {
             console.error('[Telegram] invalid JSON:', raw);
@@ -66,6 +55,27 @@ export class OrderService {
       req.write(body);
       req.end();
     });
+  }
+
+  /** Отправляет сообщение всем настроенным получателям */
+  sendTelegramMessage(text: string): Promise<void> {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId1  = process.env.TELEGRAM_CHAT_ID;
+    const chatId2  = process.env.TELEGRAM_CHAT_ID_2;
+
+    console.log('[Telegram] BOT_TOKEN set:', !!botToken, '| CHAT_ID_1 set:', !!chatId1, '| CHAT_ID_2 set:', !!chatId2);
+
+    if (!botToken || !chatId1) {
+      console.warn('[Telegram] TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set');
+      return Promise.resolve();
+    }
+
+    const recipients = [chatId1, chatId2].filter(Boolean) as string[];
+    return Promise.all(
+      recipients.map(id => this.sendToChat(botToken, id, text).catch(e =>
+        console.error(`[Telegram] error sending to ${id}:`, e)
+      ))
+    ).then(() => undefined);
   }
 
   async createOrder(userId: number, options: CreateOrderOptions = {}) {
@@ -107,10 +117,18 @@ export class OrderService {
     );
 
     // Уведомление в Telegram
-    const total     = order.items.reduce((s, i) => s + i.price * i.quantity, 0);
-    const itemLines = order.items
-      .map((i) => `• ${i.product?.name ?? 'Товар'} × ${i.quantity} — ${(i.price * i.quantity).toLocaleString('ru')} ₽`)
-      .join('\n');
+    const total = order.items.reduce((s, i) => s + i.price * i.quantity, 0);
+
+    // Собираем строки товаров с размером и цветом из cart.items
+    const cartItemMap = new Map(cart.items.map(ci => [ci.productId, ci]));
+    const itemLines = order.items.map((i) => {
+      const cartItem = cartItemMap.get(i.productId ?? 0);
+      const details: string[] = [];
+      if (cartItem?.size)  details.push(`размер: ${cartItem.size}`);
+      if (cartItem?.color) details.push(`цвет: ${cartItem.color}`);
+      const detailStr = details.length ? ` (${details.join(', ')})` : '';
+      return `• ${i.product?.name ?? 'Товар'}${detailStr} × ${i.quantity} — ${(i.price * i.quantity).toLocaleString('ru')} сом.`;
+    }).join('\n');
 
     const message = [
       `🛒 <b>Новый заказ #${order.id}</b>`,
@@ -122,7 +140,7 @@ export class OrderService {
       `📦 <b>Товары:</b>`,
       itemLines,
       '',
-      `💰 <b>Итого: ${total.toLocaleString('ru')} ₽</b>`,
+      `💰 <b>Итого: ${total.toLocaleString('ru')} сом.</b>`,
     ].filter((l) => l !== null).join('\n');
 
     // Ждём результата — ошибка не должна прерывать ответ
