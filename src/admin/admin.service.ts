@@ -64,11 +64,11 @@ export class AdminService {
     return this.prisma.product.findMany({ orderBy: { createdAt: "desc" } });
   }
 
-  async createProduct(productData: { name: string; description?: string; price: number; image?: string; category?: string }) {
+  async createProduct(productData: { name: string; description?: string; price: number; image?: string; category?: string; colors?: any; sizes?: any; stock?: number }) {
     return this.prisma.product.create({ data: productData });
   }
 
-  async updateProduct(id: number, productData: { name?: string; description?: string; price?: number; image?: string; category?: string }) {
+  async updateProduct(id: number, productData: { name?: string; description?: string; price?: number; image?: string; category?: string; colors?: any; sizes?: any; stock?: number }) {
     return this.prisma.product.update({ where: { id }, data: productData });
   }
 

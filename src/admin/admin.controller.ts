@@ -57,7 +57,7 @@ export class AdminController {
 
   @Post("products")
   async createProduct(
-    @Body() productData: { name: string; description?: string; price: number; category?: string; image?: string },
+    @Body() productData: { name: string; description?: string; price: number; category?: string; image?: string; colors?: any; sizes?: any; stock?: number },
   ) {
     return this.adminService.createProduct(productData);
   }
@@ -65,7 +65,7 @@ export class AdminController {
   @Put("products/:id")
   async updateProduct(
     @Param("id") id: string,
-    @Body() productData: { name?: string; description?: string; price?: number; category?: string; image?: string },
+    @Body() productData: { name?: string; description?: string; price?: number; category?: string; image?: string; colors?: any; sizes?: any; stock?: number },
   ) {
     return this.adminService.updateProduct(Number(id), productData);
   }
